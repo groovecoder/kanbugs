@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>I kanban haz bugs | Kanbu.gs</title>
+  <link href="lib/bootstrap/css/bootstrap.min.css" rel="stylesheet" media="screen"/>
+  <link href="styles.css" rel="stylesheet" media="screen"/>
+</head>
+<body>
+
+  <h1>Kanbu.gs</h1> for Product:
+
+  <div class="row-fluid">
+    <div class="span12 title">
+      <div class="row-fluid">
+
+        <div class="span1">
+          <div class="header">Selected</div>
+          <ul class="unstyled cards">
+            <li>Card 1</li>
+          </ul>
+        </div>
+
+        <div class="span1">
+          <div class="header">Analysis</div>
+          <ul class="unstyled cards">
+            <li>Card 2</li>
+          </ul>
+        </div>
+
+        <div class="span8 column">
+          <div class="header">Development</div>
+          <div class="row-fluid">
+
+            <div class="span2">
+              <div class="header">Story</div>
+              <ul class="unstyled cards">
+                <li>Card3</li>
+              </ul>
+            </div>
+
+            <div class="span2">
+              <div class="header">Implement</div>
+            </div>
+
+            <div class="span2">
+              <div class="header">Review</div>
+            </div>
+
+            <div class="span2">
+              <div class="header">Test</div>
+            </div>
+
+          </div>
+        </div>
+
+        <div class="span1 header">Released</div>
+
+      </div> <!-- row-fluid -->
+    </div> <!-- span12 -->
+  </div> <!-- row-fluid -->
+
+
+  <script src="lib/jquery-1.8.3.min.js"></script>
+  <script src="lib/underscore-min.js"></script>
+  <script src="lib/bootstrap/js/bootstrap.min.js"></script>
+  <script>
+    // Get MDN bugs from Bugzilla
+    var bugzillaURL = "https://api-dev.bugzilla.mozilla.org/latest/bug" +
+                      "?product=Mozilla%20Developer%20Network" +
+                      "&include_fields=id,summary,component,creation_time,creator,status,resolution,whiteboard,assigned_to";
+    $.getJSON(bugzillaURL).done(function(data){
+      _.each(data.bugs, function(bug){
+        console.log("Bug " + bug.id);
+      });
+    });
+    // Get MDN pull requests from GitHub
+    $.getJSON("https://api.github.com/repos/mozilla/kuma/pulls").done(function(data){
+      _.each(data, function(pull){
+        var bugRE = /fix bug (\d+)/;
+        var bugArray = bugRE.exec(pull.title);
+        if (bugArray && typeof(bugArray[1]) != undefined) {
+          console.log("Pull " + pull.number + " fixes bug " + bugArray[1]);
+        }
+      });
+    });
+  </script>
+</body>
+</html>

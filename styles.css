@@ -1,0 +1,11 @@
+.header {
+  border: solid 1px gray;
+  border-radius: 2px;
+}
+.cards {
+  margin: .5em;
+}
+.cards li {
+  border: solid 1px gray;
+  padding: 1em;
+}
