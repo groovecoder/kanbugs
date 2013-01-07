@@ -1,3 +1,6 @@
+.column {
+  float: left;
+}
 .header {
   border: solid 1px gray;
   border-radius: 2px;

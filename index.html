@@ -9,93 +9,165 @@
 <body>
 
   <h1>Kanbu.gs</h1> <h2>Product</h2>
-  <h3>Selected</h3>
-  <ul id="selected">
-  </ul>
-  <h3>Analysis</h3>
-  <ul id="analysis">
-  </ul>
-  <h3>Story</h3>
-  <ul id="story">
-  </ul>
-  <h3>Implement</h3>
-  <ul id="implement">
-  </ul>
-  <h3>Review</h3>
-  <ul id="review">
-  </ul>
-  <h3>Test</h3>
-  <ul id="test">
-  </ul>
-  <h3>Released</h3>
-  <ul id="released">
-  </ul>
+
+  <div id="board-stats">
+    Lead Time: <span id="lead-time"></span>
+  </div>
+
+  <div id="selected-column" class="column">
+    <h3>Selected (<span class="count">...</span>)</h3>
+    <ul id="selected">
+    </ul>
+  </div>
+
+  <div id="analysis-column" class="column">
+    <h3>Analysis (<span class="count">...</span>)</h3>
+    <ul id="analysis">
+    </ul>
+  </div>
+
+  <div id="selected-column" class="column">
+    <h3>Story (<span class="count">...</span>)</h3>
+    <ul id="story">
+    </ul>
+  </div>
+
+  <div id="implement-column" class="column">
+    <h3>Implement (<span class="count">...</span>)</h3>
+    <ul id="implement">
+    </ul>
+  </div>
+
+  <div id="review-column" class="column">
+    <h3>Review (<span class="count">...</span>)</h3>
+    <ul id="review">
+    </ul>
+  </div>
+
+  <div id="test-column" class="column">
+    <h3>Test (<span class="count">...</span>)</h3>
+    <ul id="test">
+    </ul>
+  </div>
+
+  <div id="released-column" class="column">
+    <h3>Released (<span class="count">...</span>)</h3>
+    <ul id="released">
+    </ul>
+  </div>
 
 
   <script src="lib/jquery-1.8.3.min.js"></script>
   <script src="lib/underscore-min.js"></script>
   <script src="lib/bootstrap/js/bootstrap.min.js"></script>
-  <script src="lib/bz.js"></script>
+  <script src="lib/date.js"></script>
+  <script src="lib/time.js"></script>
   <script>
-    var ghBugs = [],
-        bzBugs = [];
+    var states = ['selected', 'analysis', 'story', 'implement', 'review', 'test', 'released'],
+        releaseTimes = [],
+        ghBugs = [],
+        bzBugs = [],
+        kanBugs = {};
+
+    _.each(states, function(state) {
+      kanBugs[state] = [];
+    });
+
+    //console.log(kanBugs);
 
     var loadGhBugs = function(data) {
       _.each(data, function(pull){
         var bugRE = /fix bug (\d+)/;
         var bugArray = bugRE.exec(pull.title);
         if (bugArray && typeof(bugArray[1]) != undefined) {
-          console.log("Pull " + pull.number + " fixes bug " + bugID);
+          //console.log("Pull " + pull.number + " fixes bug " + bugID);
           var bugID = bugArray[1];
-          var ghBug = {id: bugID, state: pull.state, merged_at: pull.merged_at};
-          console.log('ghBug: ' + JSON.stringify(ghBug));
+          var ghBug = {id: bugID, state: pull.state, created_at: pull.created_at, merged_at: pull.merged_at};
           ghBugs.push(ghBug);
         }
       });
     };
 
     var processBzBugs = function(data) {
+      /*
+      console.log("processBzBugs");
+      console.log("data.bugs: " + JSON.stringify(data.bugs));
+      */
       _.each(data.bugs, function(bug){
-        var li = "<li>" + bug.summary + "</li>";
+        //console.log("bug:" + JSON.stringify(bug));
+        var li = "<li><a href=\"https://bugzilla.mozilla.org/show_bug.cgi?id=" + bug.id + "\" target=\"_blank\">" + bug.id + "</a><br/>" + bug.summary + "</li>";
         var $storyList = $('ul#story');
         var $implementList = $('ul#implement');
         var $reviewList = $('ul#review');
         var $testList = $('ul#test');
         var $releasedList = $('ul#released');
+
+        // Where is this bug now?
+        // Start from the right of the board and work left
         if (bug.status == 'VERIFIED') {
+          kanBugs['released'].push(bug);
           $releasedList.append(li);
         } else if (bug.status == 'RESOLVED') {
+          kanBugs['test'].push(bug)
           $testList.append(li);
+
+        // Check the list of GitHub bugs to see if a pull request is in for the bug
         } else if (_.contains(_.pluck(ghBugs, 'id'), bug.id.toString())){
+          kanBugs['review'].push(bug);
           $reviewList.append(li);
         } else if (bug.assigned_to.name) {
+          kanBugs['implement'].push(bug);
           $implementList.append(li);
         } else {
+          kanBugs['selected'].push(bug);
           var $selectedList = $('ul#selected');
           $selectedList.append(li);
         }
-        console.log("Bug " + bug.id);
+
+        // How long did the bug take to release?
+        var creation_time = bug.creation_time.replace("T", " ");
+        creation_time = creation_time.replace("Z", "");
+        // FIXME: cf_last_resolved isn't VERIFIED
+        var created = Date.parse(creation_time),
+            resolved = Date.parse(bug.cf_last_resolved);
+        var time_to_complete = new TimeSpan(resolved-created);
+        var ttc = time_to_complete.getTotalMilliseconds();
+        bug['ttc'] = ttc;
+        releaseTimes.push(ttc);
+        console.log(bug.ttc);
+      });
+
+      var sum = 0;
+      for (var i=0; i < releaseTimes.length; i++) {
+        sum += releaseTimes[i];
+      }
+      var avg = sum/releaseTimes.length;
+      console.log(avg);
+      var lead_time = avg/86400000;
+      $('#lead-time').html(lead_time + " days");
+
+      _.each(_.keys(kanBugs), function(key) {
+        // Show count at top of column
+        var selector = "#" + key + "-column .count";
+        $(selector).html($(kanBugs[key]).length);
       });
     };
 
     // Get MDN pull requests from GitHub
-    var gettingPulls = $.getJSON("https://api.github.com/repos/mozilla/kuma/pulls", {
+    var githubURL = "https://api.github.com/repos/mozilla/kuma/pulls";
+    var gettingPulls = $.getJSON(githubURL, {
                 client_id: '6f879db8324dca8c26f1',
                 client_secret: 'da455accd2ff34dbbc52697c7649f49b717ec98d'
-                })
+                });
+    $.when(gettingPulls).done(loadGhBugs);
 
-    gettingPulls.done(loadGhBugs);
-
-
-    gettingPulls.done(function(){
-      var bugzillaURL = "https://api-dev.bugzilla.mozilla.org/latest/bug" +
-                      "?product=Mozilla%20Developer%20Network" +
-                      "&include_fields=id,summary,component,creation_time,creator,status,resolution,whiteboard,assigned_to,depends_on,blocks" +
-                      "&whiteboard=kanbugs";
-      var gettingBugs = $.getJSON(bugzillaURL)
-
-      gettingBugs.done(processBzBugs);
-    });
+    // Get bugs from Bugzilla
+    var bugzillaURL = "https://api-dev.bugzilla.mozilla.org/latest/bug" +
+                    "?product=Mozilla%20Developer%20Network" +
+                    "&include_fields=id,summary,component,creation_time,creator,status,resolution,whiteboard,assigned_to,depends_on,blocks,history,cf_last_resolved" +
+                    "&whiteboard=kanbugs";
+    var gettingBugs = $.getJSON(bugzillaURL);
+    $.when(gettingBugs).done(processBzBugs);
 
   </script>
 </body>
