@@ -86,7 +86,14 @@
           ghBugs.push(ghBug);
         }
       });
+      console.log("loadGhBugs complete.");
     };
+
+    var formatDateTime = function(date_time_in) {
+        var date_time = date_time_in.replace("T", " ");
+        date_time = date_time_in.replace("Z", "");
+        return date_time;
+    }
 
     var processBzBugs = function(data) {
       /*
@@ -94,7 +101,7 @@
       console.log("data.bugs: " + JSON.stringify(data.bugs));
       */
       _.each(data.bugs, function(bug){
-        //console.log("bug:" + JSON.stringify(bug));
+        console.log("processing bug:" + bug.id + "...");
         var li = "<li><a href=\"https://bugzilla.mozilla.org/show_bug.cgi?id=" + bug.id + "\" target=\"_blank\">" + bug.id + "</a><br/>" + bug.summary + "</li>";
         var $storyList = $('ul#story');
         var $implementList = $('ul#implement');
@@ -125,18 +132,27 @@
         }
 
         // How long did the bug take to release?
-        var creation_time = bug.creation_time.replace("T", " ");
-        creation_time = creation_time.replace("Z", "");
-        // FIXME: cf_last_resolved isn't VERIFIED
-        var created = Date.parse(creation_time),
-            resolved = Date.parse(bug.cf_last_resolved);
-        var time_to_complete = new TimeSpan(resolved-created);
-        var ttc = time_to_complete.getTotalMilliseconds();
-        bug['ttc'] = ttc;
-        releaseTimes.push(ttc);
-        console.log(bug.ttc);
+        var creation_time = formatDateTime(bug.creation_time);
+        var created = Date.parse(creation_time);
+        _.each(bug.history, function(entry) {
+          _.each(entry.changes, function(change) {
+            if (change.field_name == 'status' && change.added == 'VERIFIED') {
+              bug['verified_at'] = entry.change_time;
+            }
+          });
+        });
+        if (bug['verified_at']) {
+          var verified = Date.parse(formatDateTime(bug['verified_at']));
+          var time_to_complete = new TimeSpan(verified-created);
+          var ttc = time_to_complete.getTotalMilliseconds();
+          bug['ttc'] = ttc;
+          releaseTimes.push(ttc);
+          console.log(bug.ttc);
+        }
+        console.log(" ... done.");
       });
 
+      // Calc avg. lead time
       var sum = 0;
       for (var i=0; i < releaseTimes.length; i++) {
         sum += releaseTimes[i];
@@ -163,9 +179,9 @@
 
     // Get bugs from Bugzilla
     var bugzillaURL = "https://api-dev.bugzilla.mozilla.org/latest/bug" +
-                    "?product=Mozilla%20Developer%20Network" +
-                    "&include_fields=id,summary,component,creation_time,creator,status,resolution,whiteboard,assigned_to,depends_on,blocks,history,cf_last_resolved" +
-                    "&whiteboard=kanbugs";
+                    "?product=Mozilla%20Developer%20Network&whiteboard=p%3D" +
+                    "&include_fields=id,summary,component,creation_time,creator,status,resolution,whiteboard,assigned_to,depends_on,blocks,history,cf_last_resolved";
+    console.log("fetching: " + bugzillaURL);
     var gettingBugs = $.getJSON(bugzillaURL);
     $.when(gettingBugs).done(processBzBugs);
 
