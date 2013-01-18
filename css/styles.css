@@ -12,3 +12,7 @@
   border: solid 1px gray;
   padding: 1em;
 }
+#progress-bar {
+  text-align: right;
+  color: #000;
+}
