@@ -1,3 +1,29 @@
+requirejs.config({
+    baseUrl: 'lib',
+    paths: {
+      bootstrap: 'bootstrap/js/bootstrap',
+    },
+    shim: {
+      underscore: {
+        exports: '_'
+      },
+      bootstrap: {
+        deps: ['jquery']
+      },
+      date: {
+        deps: ['jquery']
+      },
+      time: {
+        deps: ['date']
+      }
+    }
+});
+define(function(require, exports, module) {
+    var _ = require('underscore');
+    require('bootstrap');
+    require('date');
+    require('time');
+
     var states = ['selected', 'implement', 'review', 'test', 'released'],
         triageTimes = [],
         selectedTimes = [],
@@ -228,3 +254,4 @@
 
     $('.progress').hide();
     $('form#filters button').click(kanbanAllTheBugs);
+});
